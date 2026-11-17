@@ -35,4 +35,13 @@ return [
         ],
     ],
 
+    'hive' => [
+        'base_url' => env('HIVE_BASE_URL', 'https://hub.hive.test'),
+        'client_id' => env('HIVE_CLIENT_ID', ''),
+        'client_secret' => env('HIVE_CLIENT_SECRET', ''),
+        'redirect' => env('HIVE_REDIRECT_URI', env('APP_URL').'/auth/callback'),
+        'verify_ssl' => env('HIVE_VERIFY_SSL', true),
+        'ca_bundle' => env('HIVE_CA_BUNDLE'),
+    ],
+
 ];
