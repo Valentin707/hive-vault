@@ -124,7 +124,7 @@
             </div>
         </section>
 
-        <section class="hive-vault-unlocked" aria-labelledby="vault-workspace-title" x-cloak x-show="stage === 'unlocked'">
+        <section class="hive-vault-unlocked" aria-labelledby="vault-workspace-title" x-cloak x-show="stage === 'unlocked'" x-data="vaultWorkspace">
             <div class="hive-vault-statusbar">
                 <div class="hive-vault-statusbar__encryption">
                     <span class="hive-status-dot" aria-hidden="true"></span>
@@ -140,15 +140,7 @@
                 </div>
             </div>
 
-            <section class="hive-panel hive-vault-workspace" aria-labelledby="vault-workspace-title">
-                <p class="hive-eyebrow">Secure workspace / Unlocked</p>
-                <h2 id="vault-workspace-title">Your vault is unlocked</h2>
-                <p class="hive-panel__description">Your encryption key is active in this browser tab. Lock the vault or leave the tab inactive to clear it from this session.</p>
-                <div class="hive-vault-workspace__empty">
-                    <span class="hive-vault-workspace__glyph" aria-hidden="true">◇</span>
-                    <p>Encrypted vault modules will appear here.</p>
-                </div>
-            </section>
+            @include('livewire.vault-workspace')
         </section>
     </section>
 

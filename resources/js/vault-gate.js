@@ -209,6 +209,9 @@ export function registerVaultGate(Alpine) {
             this.cryptoKey = cryptoKey;
             this.stage = 'unlocked';
             this.errorMessage = '';
+            window.dispatchEvent(new CustomEvent('hive-vault-unlocked', {
+                detail: { cryptoKey },
+            }));
             this.stopAutoLockTimer?.();
             this.stopAutoLockTimer = startAutoLock(
                 this.autoLockMinutes,
@@ -226,6 +229,7 @@ export function registerVaultGate(Alpine) {
         lockVault(shouldRecordLock = true) {
             this.stopAutoLockTimer?.();
             this.stopAutoLockTimer = null;
+            window.dispatchEvent(new Event('hive-vault-locked'));
             clearSessionKey(this.sessionKeyName);
             this.cryptoKey = null;
             this.countdownSeconds = 0;
@@ -240,6 +244,7 @@ export function registerVaultGate(Alpine) {
         clearUnlockedSession() {
             this.stopAutoLockTimer?.();
             this.stopAutoLockTimer = null;
+            window.dispatchEvent(new Event('hive-vault-locked'));
             if (this.pendingCryptoKey) {
                 discardDerivedKey(this.pendingCryptoKey);
                 this.pendingCryptoKey = null;
