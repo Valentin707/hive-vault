@@ -1776,6 +1776,337 @@ html[data-theme="hive"] .hive-vault-button--keygen:hover {
     background: rgba(188, 119, 131, 0.1);
 }
 
+html[data-theme="hive"] .hive-vault-statusbar {
+    flex-wrap: wrap;
+}
+
+html[data-theme="hive"] .hive-vault-clipboard-status {
+    display: inline-flex;
+    min-height: 32px;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 7px 4px 10px;
+    border: 1px solid rgba(255, 83, 97, 0.5);
+    background: rgba(70, 15, 23, 0.72);
+    color: #ff8791;
+    font-size: 8px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+html[data-theme="hive"] .hive-vault-button--wipe {
+    min-height: 24px;
+    padding: 0 7px;
+    border-color: rgba(255, 83, 97, 0.44);
+    color: #ff9ca4;
+    font-size: 7px;
+}
+
+html[data-theme="hive"] .hive-vault-button--wipe:hover:not(:disabled) {
+    border-color: var(--hive-red-hover);
+    background: rgba(255, 83, 97, 0.12);
+}
+
+html[data-theme="hive"] .hive-vault-button--security {
+    min-height: 34px;
+    border-color: rgba(173, 193, 207, 0.32);
+    color: var(--hive-text-secondary);
+}
+
+html[data-theme="hive"] .hive-vault-button--security:hover:not(:disabled) {
+    border-color: var(--hive-rose-focus);
+    background: rgba(188, 119, 131, 0.08);
+    color: var(--hive-text-bright);
+}
+
+html[data-theme="hive"] .hive-vault-security-modal {
+    position: fixed;
+    z-index: 1000;
+    inset: 0;
+}
+
+html[data-theme="hive"] .hive-vault-security-backdrop {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    place-items: center;
+    overflow: auto;
+    padding: 16px;
+    background: rgba(3, 4, 6, 0.84);
+}
+
+html[data-theme="hive"] .hive-vault-security-dialog {
+    display: grid;
+    width: min(920px, 100%);
+    max-height: min(820px, calc(100vh - 32px));
+    gap: 15px;
+    overflow: auto;
+    padding: clamp(15px, 3vw, 23px);
+    border: 1px solid rgba(173, 193, 207, 0.27);
+    background: linear-gradient(145deg, rgba(23, 26, 31, 0.99), rgba(10, 10, 12, 0.99));
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(231, 235, 238, 0.04);
+}
+
+html[data-theme="hive"] .hive-vault-security-heading,
+html[data-theme="hive"] .hive-vault-security-section-heading,
+html[data-theme="hive"] .hive-vault-audit-heading {
+    display: flex;
+    min-width: 0;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+html[data-theme="hive"] .hive-vault-security-heading h2 {
+    margin: 6px 0 0;
+    color: var(--hive-text-bright);
+    font-size: 15px;
+    font-weight: 500;
+}
+
+html[data-theme="hive"] .hive-vault-security-tabs {
+    display: flex;
+    gap: 5px;
+    border-bottom: 1px solid var(--hive-border);
+}
+
+html[data-theme="hive"] .hive-vault-security-tab {
+    min-height: 35px;
+    padding: 0 12px;
+    border: 1px solid transparent;
+    border-bottom: 0;
+    background: transparent;
+    color: var(--hive-muted);
+    cursor: pointer;
+    font: inherit;
+    font-size: 8px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+html[data-theme="hive"] .hive-vault-security-tab.is-active {
+    border-color: var(--hive-border);
+    background: rgba(10, 10, 12, 0.9);
+    color: var(--hive-rose-light);
+}
+
+html[data-theme="hive"] .hive-vault-security-content {
+    display: grid;
+    min-width: 0;
+    gap: 13px;
+}
+
+html[data-theme="hive"] .hive-vault-security-section {
+    display: grid;
+    min-width: 0;
+    gap: 13px;
+    padding: 14px;
+    border: 1px solid var(--hive-border);
+    background: rgba(7, 9, 11, 0.76);
+}
+
+html[data-theme="hive"] .hive-vault-security-section-heading h3,
+html[data-theme="hive"] .hive-vault-audit-heading h3 {
+    margin: 5px 0 0;
+    color: var(--hive-text-bright);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+html[data-theme="hive"] .hive-vault-security-current {
+    padding: 5px 7px;
+    border: 1px solid rgba(188, 119, 131, 0.38);
+    color: var(--hive-rose-light);
+    font-size: 7px;
+    letter-spacing: 0.09em;
+    white-space: nowrap;
+}
+
+html[data-theme="hive"] .hive-vault-security-options {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+}
+
+html[data-theme="hive"] .hive-vault-security-option {
+    min-height: 34px;
+    padding: 5px 8px;
+    border: 1px solid var(--hive-border);
+    background: rgba(173, 193, 207, 0.035);
+    color: var(--hive-text-secondary);
+    cursor: pointer;
+    font: inherit;
+    font-size: 7px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+html[data-theme="hive"] .hive-vault-security-option.is-active {
+    border-color: rgba(255, 83, 97, 0.55);
+    background: rgba(255, 83, 97, 0.1);
+    box-shadow: inset 0 0 14px rgba(255, 83, 97, 0.08);
+    color: var(--hive-red-hover);
+}
+
+html[data-theme="hive"] .hive-vault-security-option:disabled {
+    cursor: wait;
+    opacity: 0.58;
+}
+
+html[data-theme="hive"] .hive-vault-crypto-readout {
+    display: grid;
+    gap: 0;
+    margin: 0;
+}
+
+html[data-theme="hive"] .hive-vault-crypto-readout > div {
+    display: flex;
+    min-width: 0;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 10px 0;
+    border-top: 1px solid var(--hive-border-soft);
+}
+
+html[data-theme="hive"] .hive-vault-crypto-readout dt,
+html[data-theme="hive"] .hive-vault-crypto-readout dd {
+    margin: 0;
+    font-size: 8px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+html[data-theme="hive"] .hive-vault-crypto-readout dt {
+    color: var(--hive-muted);
+}
+
+html[data-theme="hive"] .hive-vault-crypto-readout dd {
+    color: var(--hive-success);
+    text-align: right;
+}
+
+html[data-theme="hive"] .hive-vault-audit-heading {
+    align-items: center;
+}
+
+html[data-theme="hive"] .hive-vault-audit-table-wrap {
+    max-width: 100%;
+    overflow: auto;
+    border: 1px solid var(--hive-border);
+    background: rgba(7, 9, 11, 0.78);
+}
+
+html[data-theme="hive"] .hive-vault-audit-table {
+    width: 100%;
+    min-width: 670px;
+    border-collapse: collapse;
+    color: var(--hive-text-secondary);
+    font-size: 8px;
+    letter-spacing: 0.04em;
+    text-align: left;
+}
+
+html[data-theme="hive"] .hive-vault-audit-table th,
+html[data-theme="hive"] .hive-vault-audit-table td {
+    padding: 10px 11px;
+    border-bottom: 1px solid var(--hive-border-soft);
+    vertical-align: top;
+}
+
+html[data-theme="hive"] .hive-vault-audit-table th {
+    position: sticky;
+    top: 0;
+    background: #0a0a0c;
+    color: var(--hive-muted);
+    font-size: 7px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+html[data-theme="hive"] .hive-vault-audit-time,
+html[data-theme="hive"] .hive-vault-audit-ip {
+    white-space: nowrap;
+}
+
+html[data-theme="hive"] .hive-vault-audit-target {
+    max-width: 250px;
+    overflow-wrap: anywhere;
+    color: var(--hive-text-bright);
+}
+
+html[data-theme="hive"] .hive-vault-audit-event {
+    display: inline-block;
+    padding: 4px 5px;
+    border: 1px solid rgba(173, 193, 207, 0.2);
+    color: var(--hive-text-secondary);
+    font-size: 7px;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+}
+
+html[data-theme="hive"] .hive-audit-event--vault_initialized,
+html[data-theme="hive"] .hive-audit-event--vault_unlocked {
+    border-color: rgba(116, 173, 146, 0.36);
+    color: var(--hive-success);
+}
+
+html[data-theme="hive"] .hive-audit-event--item_created,
+html[data-theme="hive"] .hive-audit-event--item_viewed,
+html[data-theme="hive"] .hive-audit-event--item_copied,
+html[data-theme="hive"] .hive-audit-event--item_updated {
+    border-color: rgba(188, 119, 131, 0.34);
+    color: var(--hive-rose-light);
+}
+
+html[data-theme="hive"] .hive-audit-event--item_deleted,
+html[data-theme="hive"] .hive-audit-event--vault_locked {
+    border-color: rgba(255, 83, 97, 0.38);
+    color: var(--hive-red-hover);
+}
+
+html[data-theme="hive"] .hive-vault-security-message {
+    margin: 0;
+    padding: 14px;
+    border: 1px dashed var(--hive-border);
+    color: var(--hive-muted);
+    font-size: 8px;
+    letter-spacing: 0.08em;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+@media (max-width: 620px) {
+    html[data-theme="hive"] .hive-vault-security-options {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    html[data-theme="hive"] .hive-vault-crypto-readout > div {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    html[data-theme="hive"] .hive-vault-crypto-readout dd {
+        text-align: left;
+    }
+}
+
+@media (max-width: 460px) {
+    html[data-theme="hive"] .hive-vault-security-options {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    html[data-theme="hive"] .hive-vault-security-heading,
+    html[data-theme="hive"] .hive-vault-audit-heading {
+        align-items: flex-start;
+    }
+}
+
 html[data-theme="hive"] .hive-vault-generator-trigger {
     min-width: 68px;
     padding: 0 7px;

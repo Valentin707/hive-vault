@@ -60,6 +60,46 @@ class VaultGate extends Component
         $this->writeAuditLog($this->initializedVaultUser(), VaultAuditLog::VAULT_LOCKED);
     }
 
+    public function updateSecuritySettings(mixed $autoLockMinutes): int
+    {
+        $user = $this->initializedVaultUser();
+
+        $validated = Validator::make(['autoLockMinutes' => $autoLockMinutes], [
+            'autoLockMinutes' => ['required', 'integer', Rule::in([0, 1, 5, 15, 30, 60])],
+        ])->validate();
+
+        $minutes = (int) $validated['autoLockMinutes'];
+
+        $user->forceFill([
+            'vault_auto_lock_minutes' => $minutes,
+        ])->save();
+
+        return $minutes;
+    }
+
+    /**
+     * Return the latest audit metadata without any decrypted item fields.
+     *
+     * @return list<array{id: string, vault_item_id: ?string, action: string, ip_address: ?string, created_at: ?string}>
+     */
+    public function loadAuditTelemetry(): array
+    {
+        return $this->initializedVaultUser()
+            ->vaultAuditLogs()
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(50)
+            ->get(['id', 'vault_item_id', 'action', 'ip_address', 'created_at'])
+            ->map(fn (VaultAuditLog $log): array => [
+                'id' => $log->id,
+                'vault_item_id' => $log->vault_item_id,
+                'action' => $log->action,
+                'ip_address' => $log->ip_address,
+                'created_at' => $log->created_at?->toIso8601String(),
+            ])
+            ->all();
+    }
+
     /**
      * Return only ciphertext and structural vault metadata for the authenticated user.
      *

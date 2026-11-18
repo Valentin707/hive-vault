@@ -226,7 +226,15 @@ export function clearSessionKey(sessionKeyName) {
 }
 
 export function startAutoLock(minutes, onTimeout, onTick) {
-    const timeoutMilliseconds = Math.max(1, minutes) * 60_000;
+    const timeoutMinutes = Number(minutes);
+
+    if (!Number.isFinite(timeoutMinutes) || timeoutMinutes <= 0) {
+        onTick(0);
+
+        return () => {};
+    }
+
+    const timeoutMilliseconds = timeoutMinutes * 60_000;
     let lastActivityAt = Date.now();
     let active = true;
 

@@ -1,6 +1,9 @@
 import { decryptData, encryptData } from './vault-crypto';
 import { calculateEntropy, generatePassword, generatePassphrase } from './vault-generator';
 
+const clipboardTextEncoder = new TextEncoder();
+let clipboardWriteQueue = Promise.resolve();
+
 const DATABASE_PORTS = {
     postgresql: '5432',
     mysql: '3306',
@@ -107,6 +110,29 @@ function databaseCliCommand(payload, masked = false) {
     return '';
 }
 
+function writeClipboardText(value) {
+    const operation = clipboardWriteQueue.then(() => navigator.clipboard.writeText(value));
+
+    clipboardWriteQueue = operation.catch(() => {});
+
+    return operation;
+}
+
+async function createClipboardReference(value) {
+    const encodedValue = clipboardTextEncoder.encode(value);
+
+    try {
+        const digest = await globalThis.crypto.subtle.digest('SHA-256', encodedValue);
+        const hash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+
+        return { hash, length: value.length, copiedAt: Date.now() };
+    } catch {
+        return { length: value.length, copiedAt: Date.now() };
+    } finally {
+        encodedValue.fill(0);
+    }
+}
+
 export function registerVaultWorkspace(Alpine) {
     Alpine.data('vaultWorkspace', () => ({
         cryptoKey: null,
@@ -147,6 +173,22 @@ export function registerVaultWorkspace(Alpine) {
         generatorError: '',
         generatorCopied: false,
         generatorCopiedTimeout: null,
+        clipboardReference: null,
+        clipboardCountdown: 0,
+        clipboardFeedback: '',
+        clipboardInterval: null,
+        clipboardFeedbackTimeout: null,
+        clipboardArmVersion: 0,
+        clipboardCommandVersion: 0,
+        securityModalOpen: false,
+        securityTab: 'settings',
+        securityAutoLockMinutes: 15,
+        securitySettingsSaving: false,
+        securitySettingsError: '',
+        auditLogs: [],
+        auditLoading: false,
+        auditLoaded: false,
+        auditError: '',
         revealedFields: {},
         copiedField: '',
         copiedTimeout: null,
@@ -160,6 +202,8 @@ export function registerVaultWorkspace(Alpine) {
         lockedHandler: null,
 
         init() {
+            const autoLockMinutes = Number.parseInt(this.$el.dataset.autoLockMinutes, 10);
+            this.securityAutoLockMinutes = [0, 1, 5, 15, 30, 60].includes(autoLockMinutes) ? autoLockMinutes : 15;
             this.unlockedHandler = (event) => {
                 this.handleVaultUnlocked(event.detail.cryptoKey);
             };
@@ -185,6 +229,12 @@ export function registerVaultWorkspace(Alpine) {
 
         get trashCount() {
             return this.items.filter((item) => Boolean(item.deleted_at)).length;
+        },
+
+        get clipboardStatusLabel() {
+            return this.clipboardCountdown > 0
+                ? `CLIPBOARD ARMED // WIPE IN ${this.clipboardCountdown}S`
+                : this.clipboardFeedback;
         },
 
         get generatorEntropyLabel() {
@@ -325,6 +375,8 @@ export function registerVaultWorkspace(Alpine) {
         clearWorkspace() {
             this.workspaceVersion += 1;
             this.cryptoKey = null;
+            this.securityModalOpen = false;
+            void this.wipeClipboard();
             this.clearWorkspaceData();
             this.isLoading = false;
             this.isSaving = false;
@@ -350,12 +402,84 @@ export function registerVaultWorkspace(Alpine) {
             this.generatorOpen = false;
             this.keygenOpen = false;
             this.clearGeneratedSecret();
+            this.securityTab = 'settings';
+            this.securitySettingsSaving = false;
+            this.securitySettingsError = '';
+            this.auditLogs = [];
+            this.auditLoading = false;
+            this.auditLoaded = false;
+            this.auditError = '';
             this.revealedFields = {};
             this.copiedField = '';
             this.folderEditorOpen = false;
             this.folderEditorId = null;
             this.folderNameInput = '';
             this.folderError = '';
+        },
+
+        async armClipboardWipe(value, version, cryptoKey, commandVersion) {
+            const armVersion = ++this.clipboardArmVersion;
+            window.clearInterval(this.clipboardInterval);
+            window.clearTimeout(this.clipboardFeedbackTimeout);
+            this.clipboardInterval = null;
+            this.clipboardFeedbackTimeout = null;
+            this.clipboardFeedback = '';
+            this.clipboardReference = null;
+            this.clipboardCountdown = 30;
+
+            this.clipboardInterval = window.setInterval(() => {
+                if (armVersion !== this.clipboardArmVersion) {
+                    return;
+                }
+
+                if (!this.isCurrentSession(version, cryptoKey)) {
+                    void this.wipeClipboard();
+
+                    return;
+                }
+
+                if (this.clipboardCountdown <= 1) {
+                    void this.wipeClipboard();
+
+                    return;
+                }
+
+                this.clipboardCountdown -= 1;
+            }, 1000);
+
+            const reference = await createClipboardReference(value);
+
+            if (armVersion === this.clipboardArmVersion
+                && commandVersion === this.clipboardCommandVersion
+                && this.isCurrentSession(version, cryptoKey)) {
+                this.clipboardReference = reference;
+            }
+        },
+
+        async wipeClipboard() {
+            this.clipboardCommandVersion += 1;
+            this.clipboardArmVersion += 1;
+            window.clearInterval(this.clipboardInterval);
+            window.clearTimeout(this.clipboardFeedbackTimeout);
+            this.clipboardInterval = null;
+            this.clipboardFeedbackTimeout = null;
+            this.clipboardReference = null;
+            this.clipboardCountdown = 0;
+
+            try {
+                await writeClipboardText('');
+                this.clipboardFeedback = 'CLIPBOARD WIPED';
+            } catch {
+                this.clipboardFeedback = 'CLIPBOARD WIPE FAILED';
+            }
+
+            const feedbackVersion = this.clipboardArmVersion;
+            this.clipboardFeedbackTimeout = window.setTimeout(() => {
+                if (feedbackVersion === this.clipboardArmVersion) {
+                    this.clipboardFeedback = '';
+                    this.clipboardFeedbackTimeout = null;
+                }
+            }, 2000);
         },
 
         async loadWorkspace() {
@@ -591,6 +715,145 @@ export function registerVaultWorkspace(Alpine) {
             this.form.port = DATABASE_PORTS[this.form.engine] ?? '';
         },
 
+        openSecurity() {
+            this.closeKeygen();
+            this.closeInlineGenerator();
+            this.securityTab = 'settings';
+            this.securitySettingsError = '';
+            this.securityModalOpen = true;
+        },
+
+        closeSecurity() {
+            this.securityModalOpen = false;
+            this.securitySettingsError = '';
+        },
+
+        selectSecurityTab(tab) {
+            if (!['settings', 'audit'].includes(tab)) {
+                return;
+            }
+
+            this.securityTab = tab;
+
+            if (tab === 'audit') {
+                this.loadAuditTelemetry();
+            }
+        },
+
+        async updateSecuritySettings(minutes) {
+            const autoLockMinutes = Number(minutes);
+
+            if (![0, 1, 5, 15, 30, 60].includes(autoLockMinutes) || this.securitySettingsSaving) {
+                return;
+            }
+
+            const version = this.workspaceVersion;
+            const cryptoKey = this.cryptoKey;
+            this.securitySettingsSaving = true;
+            this.securitySettingsError = '';
+
+            try {
+                const savedMinutes = Number(await this.$wire.updateSecuritySettings(autoLockMinutes));
+
+                if (![0, 1, 5, 15, 30, 60].includes(savedMinutes)) {
+                    throw new Error('The saved inactivity setting was invalid.');
+                }
+
+                this.securityAutoLockMinutes = savedMinutes;
+                this.$el.dataset.autoLockMinutes = String(savedMinutes);
+                window.dispatchEvent(new CustomEvent('hive-vault-auto-lock-updated', {
+                    detail: { minutes: savedMinutes },
+                }));
+
+                if (!this.isCurrentSession(version, cryptoKey)) {
+                    return;
+                }
+            } catch {
+                if (this.isCurrentSession(version, cryptoKey)) {
+                    this.securitySettingsError = 'SECURITY SETTING COULD NOT BE SAVED.';
+                }
+            } finally {
+                if (this.isCurrentSession(version, cryptoKey)) {
+                    this.securitySettingsSaving = false;
+                }
+            }
+        },
+
+        async loadAuditTelemetry() {
+            if (this.auditLoading || !this.cryptoKey) {
+                return;
+            }
+
+            const version = this.workspaceVersion;
+            const cryptoKey = this.cryptoKey;
+            this.auditLoading = true;
+            this.auditError = '';
+
+            try {
+                const logs = await this.$wire.loadAuditTelemetry();
+
+                if (!this.isCurrentSession(version, cryptoKey)) {
+                    return;
+                }
+
+                this.auditLogs = Array.isArray(logs) ? logs : [];
+                this.auditLoaded = true;
+            } catch {
+                if (this.isCurrentSession(version, cryptoKey)) {
+                    this.auditError = 'AUDIT TELEMETRY COULD NOT BE LOADED.';
+                }
+            } finally {
+                if (this.isCurrentSession(version, cryptoKey)) {
+                    this.auditLoading = false;
+                }
+            }
+        },
+
+        get auditEntries() {
+            return this.auditLogs.map((log) => ({
+                ...log,
+                eventLabel: String(log.action ?? 'unknown').toUpperCase(),
+                eventClass: this.auditEventClass(log.action),
+                timestamp: this.formatAuditTimestamp(log.created_at),
+                target: this.auditTarget(log),
+                sourceIp: log.ip_address || 'N/A',
+            }));
+        },
+
+        auditTarget(log) {
+            if (!log.vault_item_id) {
+                return String(log.action ?? '').startsWith('item_') ? '[PURGED ENTRY]' : 'SYSTEM / VAULT';
+            }
+
+            return this.items.find((item) => item.id === log.vault_item_id)?.title ?? '[PURGED ENTRY]';
+        },
+
+        auditEventClass(action) {
+            const allowedEvents = [
+                'vault_initialized', 'vault_unlocked', 'vault_locked',
+                'item_created', 'item_viewed', 'item_copied', 'item_updated', 'item_deleted',
+            ];
+            const eventName = allowedEvents.includes(action) ? action : 'unknown';
+
+            return `hive-audit-event--${eventName}`;
+        },
+
+        formatAuditTimestamp(value) {
+            if (!value) {
+                return 'UNKNOWN';
+            }
+
+            const date = new Date(value);
+
+            if (Number.isNaN(date.getTime())) {
+                return 'UNKNOWN';
+            }
+
+            const pad = (part) => String(part).padStart(2, '0');
+
+            return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+        },
+
         togglePasswordGenerator() {
             if (this.generatorOpen) {
                 this.closeInlineGenerator();
@@ -605,6 +868,7 @@ export function registerVaultWorkspace(Alpine) {
         },
 
         openKeygen() {
+            this.securityModalOpen = false;
             this.clearGeneratedSecret();
             this.generatorOpen = false;
             this.keygenOpen = true;
@@ -722,11 +986,31 @@ export function registerVaultWorkspace(Alpine) {
                 return;
             }
 
+            const version = this.workspaceVersion;
+            const cryptoKey = this.cryptoKey;
+            const commandVersion = ++this.clipboardCommandVersion;
             let secret = this.generatedSecret;
 
             try {
-                await navigator.clipboard.writeText(secret);
+                await writeClipboardText(secret);
+
+                if (!this.isCurrentSession(version, cryptoKey)
+                    || commandVersion !== this.clipboardCommandVersion) {
+                    if (commandVersion === this.clipboardCommandVersion) {
+                        void this.wipeClipboard();
+                    }
+
+                    return;
+                }
+
+                await this.armClipboardWipe(secret, version, cryptoKey, commandVersion);
                 secret = '';
+
+                if (!this.isCurrentSession(version, cryptoKey)
+                    || commandVersion !== this.clipboardCommandVersion) {
+                    return;
+                }
+
                 this.generatorCopied = true;
                 window.clearTimeout(this.generatorCopiedTimeout);
                 this.generatorCopiedTimeout = window.setTimeout(() => {
@@ -1284,15 +1568,27 @@ export function registerVaultWorkspace(Alpine) {
             const itemId = this.selectedItem.id;
             const version = this.workspaceVersion;
             const cryptoKey = this.cryptoKey;
+            const commandVersion = ++this.clipboardCommandVersion;
             let clipboardValue = String(value);
 
             try {
-                await navigator.clipboard.writeText(clipboardValue);
-                clipboardValue = '';
+                await writeClipboardText(clipboardValue);
+
+                if (!this.isCurrentSession(version, cryptoKey)
+                    || commandVersion !== this.clipboardCommandVersion) {
+                    if (commandVersion === this.clipboardCommandVersion) {
+                        void this.wipeClipboard();
+                    }
+
+                    return;
+                }
 
                 this.recordItemCopied(itemId);
+                await this.armClipboardWipe(clipboardValue, version, cryptoKey, commandVersion);
+                clipboardValue = '';
 
-                if (!this.isCurrentSession(version, cryptoKey)) {
+                if (!this.isCurrentSession(version, cryptoKey)
+                    || commandVersion !== this.clipboardCommandVersion) {
                     return;
                 }
 

@@ -28,15 +28,19 @@ export function registerVaultGate(Alpine) {
         isProcessing: false,
         stopAutoLockTimer: null,
         pageHideHandler: null,
+        autoLockHandler: null,
 
         init() {
             this.sessionKeyName = `hive-vault:session-key:${this.$el.dataset.vaultUserId}`;
             this.vaultSalt = this.$el.dataset.vaultSalt;
             this.vaultVerifier = this.$el.dataset.vaultVerifier;
-            this.autoLockMinutes = Math.max(1, Number.parseInt(this.$el.dataset.autoLockMinutes, 10) || 15);
+            const configuredMinutes = Number.parseInt(this.$el.dataset.autoLockMinutes, 10);
+            this.autoLockMinutes = [0, 1, 5, 15, 30, 60].includes(configuredMinutes) ? configuredMinutes : 15;
             this.pageHideHandler = () => this.clearUnlockedSession();
+            this.autoLockHandler = (event) => this.applyAutoLockSetting(event.detail?.minutes);
 
             window.addEventListener('pagehide', this.pageHideHandler);
+            window.addEventListener('hive-vault-auto-lock-updated', this.autoLockHandler);
 
             if (!this.vaultSalt) {
                 this.stage = 'setup';
@@ -51,6 +55,7 @@ export function registerVaultGate(Alpine) {
         destroy() {
             this.clearUnlockedSession();
             window.removeEventListener('pagehide', this.pageHideHandler);
+            window.removeEventListener('hive-vault-auto-lock-updated', this.autoLockHandler);
         },
 
         get passwordStrength() {
@@ -78,10 +83,41 @@ export function registerVaultGate(Alpine) {
         },
 
         get countdownLabel() {
+            if (this.autoLockMinutes === 0) {
+                return 'NEVER';
+            }
+
             const minutes = Math.floor(this.countdownSeconds / 60).toString().padStart(2, '0');
             const seconds = (this.countdownSeconds % 60).toString().padStart(2, '0');
 
             return `${minutes}:${seconds}`;
+        },
+
+        applyAutoLockSetting(minutes) {
+            const allowedMinutes = [0, 1, 5, 15, 30, 60];
+
+            if (!allowedMinutes.includes(Number(minutes))) {
+                return;
+            }
+
+            this.stopAutoLockTimer?.();
+            this.stopAutoLockTimer = null;
+            this.autoLockMinutes = Number(minutes);
+            this.$el.dataset.autoLockMinutes = String(this.autoLockMinutes);
+
+            if (this.stage !== 'unlocked') {
+                this.countdownSeconds = 0;
+
+                return;
+            }
+
+            this.stopAutoLockTimer = startAutoLock(
+                this.autoLockMinutes,
+                () => this.lockVault(true),
+                (seconds) => {
+                    this.countdownSeconds = seconds;
+                },
+            );
         },
 
         async initializeVault() {
