@@ -40,6 +40,72 @@ function safeExternalUrl(value) {
     }
 }
 
+function isPrivateKeyAuthMethod(payload) {
+    return ['key', 'private_key'].includes(payload?.auth_method);
+}
+
+function quoteShellArgument(value) {
+    return `'${String(value ?? '').replaceAll("'", "'\\''")}'`;
+}
+
+function formatShellArgument(value) {
+    const argument = String(value ?? '');
+
+    return /^[A-Za-z0-9_./:@%+=,-]+$/.test(argument) ? argument : quoteShellArgument(argument);
+}
+
+function databaseUri(payload, maskPassword = false) {
+    const engine = String(payload.engine ?? '').toLowerCase();
+    const username = encodeURIComponent(String(payload.username ?? ''));
+    const encodedPassword = maskPassword
+        ? '••••••••'
+        : encodeURIComponent(String(payload.password ?? ''));
+    const host = String(payload.host ?? '');
+    const port = String(payload.port ?? '');
+    const databaseName = String(payload.database_name ?? '');
+
+    if (engine === 'sqlite') {
+        return `sqlite:///${databaseName}`;
+    }
+
+    if (engine === 'redis') {
+        const credentials = String(payload.username ?? '').trim()
+            ? `${username}:${encodedPassword}@`
+            : `:${encodedPassword}@`;
+
+        return `redis://${credentials}${host}:${port}`;
+    }
+
+    const scheme = ['mysql', 'mariadb'].includes(engine) ? 'mysql' : engine;
+
+    return `${scheme}://${username}:${encodedPassword}@${host}:${port}/${databaseName}`;
+}
+
+function databaseCliCommand(payload, masked = false) {
+    const engine = String(payload.engine ?? '').toLowerCase();
+    const password = masked ? '••••••••' : String(payload.password ?? '');
+    const host = formatShellArgument(payload.host);
+    const port = formatShellArgument(payload.port);
+    const username = formatShellArgument(payload.username);
+    const databaseName = formatShellArgument(payload.database_name);
+
+    if (engine === 'postgresql') {
+        return `PGPASSWORD=${quoteShellArgument(password)} psql -h ${host} -p ${port} -U ${username} -d ${databaseName}`;
+    }
+
+    if (['mysql', 'mariadb'].includes(engine)) {
+        return `mysql -h ${host} -P ${port} -u ${username} -p${quoteShellArgument(password)} ${databaseName}`;
+    }
+
+    if (engine === 'redis') {
+        const redisUser = String(payload.username ?? '').trim() ? ` --user ${username}` : '';
+
+        return `redis-cli -h ${host} -p ${port} -a ${quoteShellArgument(password)}${redisUser}`;
+    }
+
+    return '';
+}
+
 export function registerVaultWorkspace(Alpine) {
     Alpine.data('vaultWorkspace', () => ({
         cryptoKey: null,
@@ -155,9 +221,9 @@ export function registerVaultWorkspace(Alpine) {
                 addField('host', 'Host', payload.host);
                 addField('port', 'Port', payload.port);
                 addField('username', 'Username', payload.username);
-                addField('auth_method', 'Authentication', payload.auth_method === 'private_key' ? 'Private key' : 'Password');
+                addField('auth_method', 'Authentication', isPrivateKeyAuthMethod(payload) ? 'Private key' : 'Password');
 
-                if (payload.auth_method === 'private_key') {
+                if (isPrivateKeyAuthMethod(payload)) {
                     addField('private_key', 'Private key', payload.private_key, { secret: true, monospace: true });
                 } else {
                     addField('password', 'Password', payload.password, { secret: true });
@@ -176,6 +242,50 @@ export function registerVaultWorkspace(Alpine) {
             addField('notes', 'Additional note', payload.notes, { monospace: true });
 
             return fields;
+        },
+
+        get sshCommand() {
+            const payload = this.selectedItem?.payload;
+
+            if (this.selectedItem?.type !== 'ssh' || !payload) {
+                return '';
+            }
+
+            const target = `${payload.username ? `${payload.username}@` : ''}${payload.host ?? ''}`;
+            const port = String(payload.port ?? '').trim();
+            const portOption = port && Number(port) !== 22 ? ` -p ${formatShellArgument(port)}` : '';
+
+            return `ssh ${formatShellArgument(target)}${portOption}`;
+        },
+
+        get databaseConnectionStrings() {
+            const payload = this.selectedItem?.payload;
+
+            if (this.selectedItem?.type !== 'database' || !payload) {
+                return { uri: '', maskedUri: '', cli: '', maskedCli: '', supportsCli: false };
+            }
+
+            const uri = databaseUri(payload);
+            const maskedUri = databaseUri(payload, true);
+            const cli = databaseCliCommand(payload);
+            const maskedCli = databaseCliCommand(payload, true);
+
+            return {
+                uri,
+                maskedUri,
+                cli,
+                maskedCli,
+                supportsCli: Boolean(cli),
+            };
+        },
+
+        get canDownloadPrivateKey() {
+            const payload = this.selectedItem?.payload;
+
+            return this.selectedItem?.type === 'ssh'
+                && isPrivateKeyAuthMethod(payload)
+                && typeof payload.private_key === 'string'
+                && payload.private_key.length > 0;
         },
 
         handleVaultUnlocked(cryptoKey) {
@@ -996,7 +1106,7 @@ export function registerVaultWorkspace(Alpine) {
                 await navigator.clipboard.writeText(clipboardValue);
                 clipboardValue = '';
 
-                this.$wire.logAccess(itemId, 'item_copied').catch(() => {});
+                this.recordItemCopied(itemId);
 
                 if (!this.isCurrentSession(version, cryptoKey)) {
                     return;
@@ -1013,6 +1123,58 @@ export function registerVaultWorkspace(Alpine) {
                 }
             } finally {
                 clipboardValue = '';
+            }
+        },
+
+        recordItemCopied(itemId) {
+            this.$wire.logAccess(itemId, 'item_copied').catch(() => {});
+        },
+
+        downloadPrivateKey() {
+            if (!this.canDownloadPrivateKey || !this.selectedItem) {
+                return;
+            }
+
+            let privateKey = this.selectedItem.payload.private_key;
+            let title = this.selectedItem.title;
+            const itemId = this.selectedItem.id;
+            let objectUrl = '';
+            let downloadLink = null;
+
+            try {
+                if (!privateKey.endsWith('\n')) {
+                    privateKey += '\n';
+                }
+
+                const filename = String(title || 'hive-vault-key')
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]+/g, '-')
+                    .replace(/^-+|-+$/g, '')
+                    .slice(0, 100) || 'hive-vault-key';
+                const keyBlob = new Blob([privateKey], { type: 'application/x-pem-file' });
+
+                objectUrl = URL.createObjectURL(keyBlob);
+                downloadLink = document.createElement('a');
+                downloadLink.href = objectUrl;
+                downloadLink.download = `${filename}.pem`;
+                downloadLink.hidden = true;
+                document.body.append(downloadLink);
+                downloadLink.click();
+                URL.revokeObjectURL(objectUrl);
+                objectUrl = '';
+                downloadLink.remove();
+                this.recordItemCopied(itemId);
+            } catch {
+                this.workspaceError = 'PRIVATE KEY EXPORT COULD NOT BE STARTED.';
+            } finally {
+                downloadLink?.remove();
+
+                if (objectUrl) {
+                    URL.revokeObjectURL(objectUrl);
+                }
+
+                privateKey = '';
+                title = '';
             }
         },
 

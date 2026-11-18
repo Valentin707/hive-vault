@@ -1669,3 +1669,98 @@ html[data-theme="hive"] .hive-vault-sr-only {
         justify-content: flex-start;
     }
 }
+
+html[data-theme="hive"] .hive-vault-builder-stack {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+    margin-bottom: 9px;
+}
+
+html[data-theme="hive"] .hive-vault-terminal-block {
+    min-width: 0;
+    border: 1px solid rgba(173, 193, 207, 0.2);
+    background: #0a0a0c;
+}
+
+html[data-theme="hive"] .hive-vault-terminal-heading {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--hive-border-soft);
+}
+
+html[data-theme="hive"] .hive-vault-terminal-heading .hive-eyebrow {
+    margin: 0;
+    color: var(--hive-rose-light);
+}
+
+html[data-theme="hive"] .hive-vault-terminal-state {
+    flex: 0 0 auto;
+    color: var(--hive-muted);
+    font-size: 7px;
+    letter-spacing: 0.1em;
+    text-align: right;
+    text-transform: uppercase;
+}
+
+html[data-theme="hive"] .hive-vault-terminal-row {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 10px;
+}
+
+html[data-theme="hive"] .hive-vault-terminal-row.is-stacked {
+    align-items: stretch;
+    flex-direction: column;
+}
+
+html[data-theme="hive"] .hive-vault-terminal-code {
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    flex: 1 1 auto;
+    overflow-wrap: anywhere;
+    color: var(--hive-text-secondary);
+    font-family: var(--hive-font, "SFMono-Regular", Consolas, "Liberation Mono", monospace);
+    font-size: 9px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+html[data-theme="hive"] .hive-vault-terminal-actions {
+    display: flex;
+    min-width: 0;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 5px;
+}
+
+html[data-theme="hive"] .hive-vault-terminal-actions .hive-vault-mini-button {
+    min-height: 27px;
+    padding: 0 7px;
+    font-size: 7px;
+}
+
+html[data-theme="hive"] .hive-vault-terminal-actions .hive-vault-copied {
+    margin-right: 3px;
+}
+
+@media (max-width: 460px) {
+    html[data-theme="hive"] .hive-vault-terminal-row:not(.is-stacked) {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    html[data-theme="hive"] .hive-vault-terminal-actions {
+        justify-content: flex-start;
+    }
+}

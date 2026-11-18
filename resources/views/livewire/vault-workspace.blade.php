@@ -186,6 +186,54 @@
                     Verifying encrypted payload
                 </div>
 
+                <section class="hive-vault-builder-stack" x-cloak x-show="selectedItem.payload && selectedItem.type === 'ssh'" aria-label="SSH quick connect">
+                    <div class="hive-vault-terminal-block">
+                        <div class="hive-vault-terminal-heading">
+                            <p class="hive-eyebrow">Quick connect // SSH</p>
+                            <span class="hive-vault-terminal-state">Client generated</span>
+                        </div>
+                        <div class="hive-vault-terminal-row">
+                            <code class="hive-vault-terminal-code" x-text="sshCommand"></code>
+                            <div class="hive-vault-terminal-actions">
+                                <span class="hive-vault-copied" x-cloak x-show="copiedField === 'ssh-command'">Copied</span>
+                                <button class="hive-vault-mini-button" type="button" x-bind:disabled="!sshCommand" x-on:click="copyField('ssh-command', sshCommand)">Copy cmd</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="hive-vault-builder-stack" x-cloak x-show="selectedItem.payload && selectedItem.type === 'database'" aria-label="Database connection strings">
+                    <div class="hive-vault-terminal-block">
+                        <div class="hive-vault-terminal-heading">
+                            <p class="hive-eyebrow">Connection URI // Generated</p>
+                            <span class="hive-vault-terminal-state" x-text="isFieldRevealed('database-uri') ? 'Credentials revealed' : 'Credentials masked'">Credentials masked</span>
+                        </div>
+                        <div class="hive-vault-terminal-row is-stacked">
+                            <code class="hive-vault-terminal-code" x-text="isFieldRevealed('database-uri') ? databaseConnectionStrings.uri : databaseConnectionStrings.maskedUri"></code>
+                            <div class="hive-vault-terminal-actions">
+                                <span class="hive-vault-copied" x-cloak x-show="copiedField === 'database-uri'">Copied</span>
+                                <button class="hive-vault-mini-button" type="button" x-bind:aria-pressed="isFieldRevealed('database-uri')" x-on:click="toggleFieldReveal('database-uri')" x-text="isFieldRevealed('database-uri') ? 'Hide' : 'Reveal'">Reveal</button>
+                                <button class="hive-vault-mini-button" type="button" x-on:click="copyField('database-uri', databaseConnectionStrings.uri)">Copy URI</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="hive-vault-terminal-block" x-show="databaseConnectionStrings.supportsCli">
+                        <div class="hive-vault-terminal-heading">
+                            <p class="hive-eyebrow">Native CLI // Generated</p>
+                            <span class="hive-vault-terminal-state" x-text="isFieldRevealed('database-cli') ? 'Credentials revealed' : 'Credentials masked'">Credentials masked</span>
+                        </div>
+                        <div class="hive-vault-terminal-row is-stacked">
+                            <code class="hive-vault-terminal-code" x-text="isFieldRevealed('database-cli') ? databaseConnectionStrings.cli : databaseConnectionStrings.maskedCli"></code>
+                            <div class="hive-vault-terminal-actions">
+                                <span class="hive-vault-copied" x-cloak x-show="copiedField === 'database-cli'">Copied</span>
+                                <button class="hive-vault-mini-button" type="button" x-bind:aria-pressed="isFieldRevealed('database-cli')" x-on:click="toggleFieldReveal('database-cli')" x-text="isFieldRevealed('database-cli') ? 'Hide' : 'Reveal'">Reveal</button>
+                                <button class="hive-vault-mini-button" type="button" x-on:click="copyField('database-cli', databaseConnectionStrings.cli)">Copy CLI</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
                 <div class="hive-vault-field-list" x-show="selectedItem.payload">
                     <template x-for="field in inspectorFields" :key="field.key">
                         <article class="hive-vault-read-field">
@@ -197,6 +245,7 @@
                                 <pre x-bind:class="field.monospace ? 'is-monospace' : ''" x-text="field.secret && !isFieldRevealed(field.key) ? '••••••••••••' : field.value"></pre>
                                 <div class="hive-vault-read-field-actions">
                                     <button class="hive-vault-mini-button" type="button" x-show="field.secret" x-bind:aria-pressed="isFieldRevealed(field.key)" x-on:click="toggleFieldReveal(field.key)" x-text="isFieldRevealed(field.key) ? 'Hide' : 'Reveal'">Reveal</button>
+                                    <button class="hive-vault-mini-button" type="button" x-cloak x-show="field.key === 'private_key' && canDownloadPrivateKey" x-on:click="downloadPrivateKey">Download .PEM</button>
                                     <a class="hive-vault-mini-button hive-vault-launch" x-cloak x-show="field.href" x-bind:href="field.href" target="_blank" rel="noopener noreferrer" aria-label="Open URL in a new tab" title="Open URL in a new tab">↗</a>
                                     <button class="hive-vault-mini-button" type="button" x-on:click="copyField(field.key, field.value)">Copy</button>
                                 </div>
