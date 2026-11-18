@@ -312,13 +312,15 @@
                             <span>Username <b aria-hidden="true">*</b></span>
                             <input type="text" autocomplete="off" required x-model="form.username">
                         </label>
-                        <label class="hive-vault-field">
-                            <span>Password <b aria-hidden="true">*</b></span>
+                        <div class="hive-vault-field">
+                            <label for="login-password">Password <b aria-hidden="true">*</b></label>
                             <span class="hive-vault-input-action">
-                                <input x-bind:type="showFormPassword ? 'text' : 'password'" autocomplete="new-password" required x-model="form.password">
+                                <input id="login-password" x-bind:type="showFormPassword ? 'text' : 'password'" autocomplete="new-password" required x-model="form.password">
                                 <button class="hive-vault-input-toggle" type="button" x-bind:aria-label="showFormPassword ? 'Hide password' : 'Show password'" x-on:click="showFormPassword = !showFormPassword"><span aria-hidden="true">◉</span><span x-text="showFormPassword ? 'Hide' : 'Show'">Show</span></button>
+                                <button class="hive-vault-generator-trigger" type="button" x-bind:aria-expanded="generatorOpen" x-on:click="togglePasswordGenerator">Generate</button>
                             </span>
-                        </label>
+                            @include('livewire.vault-generator-panel', ['generatorContext' => 'inline', 'generatorId' => 'login'])
+                        </div>
                         <label class="hive-vault-field">
                             <span>URL <b aria-hidden="true">*</b></span>
                             <input type="url" placeholder="https://example.com" autocomplete="url" required x-model="form.url">
@@ -349,13 +351,15 @@
                             <span>Private key <b aria-hidden="true">*</b></span>
                             <textarea class="is-monospace" rows="7" spellcheck="false" autocomplete="off" required x-model="form.private_key"></textarea>
                         </label>
-                        <label class="hive-vault-field" x-show="form.auth_method === 'password'">
-                            <span>Password <b aria-hidden="true">*</b></span>
+                        <div class="hive-vault-field" x-show="form.auth_method === 'password'">
+                            <label for="ssh-password">Password <b aria-hidden="true">*</b></label>
                             <span class="hive-vault-input-action">
-                                <input x-bind:type="showFormPassword ? 'text' : 'password'" autocomplete="new-password" required x-model="form.password">
+                                <input id="ssh-password" x-bind:type="showFormPassword ? 'text' : 'password'" autocomplete="new-password" required x-model="form.password">
                                 <button class="hive-vault-input-toggle" type="button" x-bind:aria-label="showFormPassword ? 'Hide password' : 'Show password'" x-on:click="showFormPassword = !showFormPassword"><span aria-hidden="true">◉</span><span x-text="showFormPassword ? 'Hide' : 'Show'">Show</span></button>
+                                <button class="hive-vault-generator-trigger" type="button" x-bind:aria-expanded="generatorOpen" x-on:click="togglePasswordGenerator">Generate</button>
                             </span>
-                        </label>
+                            @include('livewire.vault-generator-panel', ['generatorContext' => 'inline', 'generatorId' => 'ssh'])
+                        </div>
                     </div>
 
                     <div class="hive-vault-type-fields" x-show="form.type === 'database'">
@@ -386,13 +390,15 @@
                             <span>Username <b aria-hidden="true">*</b></span>
                             <input type="text" autocomplete="off" required x-model="form.username">
                         </label>
-                        <label class="hive-vault-field">
-                            <span>Password <b aria-hidden="true">*</b></span>
+                        <div class="hive-vault-field">
+                            <label for="database-password">Password <b aria-hidden="true">*</b></label>
                             <span class="hive-vault-input-action">
-                                <input x-bind:type="showFormPassword ? 'text' : 'password'" autocomplete="new-password" required x-model="form.password">
+                                <input id="database-password" x-bind:type="showFormPassword ? 'text' : 'password'" autocomplete="new-password" required x-model="form.password">
                                 <button class="hive-vault-input-toggle" type="button" x-bind:aria-label="showFormPassword ? 'Hide password' : 'Show password'" x-on:click="showFormPassword = !showFormPassword"><span aria-hidden="true">◉</span><span x-text="showFormPassword ? 'Hide' : 'Show'">Show</span></button>
+                                <button class="hive-vault-generator-trigger" type="button" x-bind:aria-expanded="generatorOpen" x-on:click="togglePasswordGenerator">Generate</button>
                             </span>
-                        </label>
+                            @include('livewire.vault-generator-panel', ['generatorContext' => 'inline', 'generatorId' => 'database'])
+                        </div>
                     </div>
 
                     <div class="hive-vault-type-fields" x-show="form.type === 'note'">

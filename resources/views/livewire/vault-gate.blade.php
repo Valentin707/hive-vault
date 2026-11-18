@@ -134,9 +134,25 @@
                 <div class="hive-vault-statusbar__lock">
                     <span class="hive-eyebrow">Auto-lock</span>
                     <strong class="hive-vault-countdown" role="timer" aria-live="off" x-text="countdownLabel">15:00</strong>
+                    <button class="hive-vault-button hive-vault-button--keygen" type="button" aria-haspopup="dialog" x-bind:aria-expanded="keygenOpen" x-on:click="openKeygen">Keygen</button>
                     <button class="hive-vault-button hive-vault-button--lock" type="button" x-on:click="lockVault">
                         Lock vault
                     </button>
+                </div>
+            </div>
+
+            <div class="hive-vault-keygen-modal" x-cloak x-show="keygenOpen" x-on:keydown.escape.window="closeKeygen">
+                <div class="hive-vault-keygen-backdrop" x-on:click.self="closeKeygen">
+                    <section class="hive-vault-keygen-dialog" role="dialog" aria-modal="true" aria-labelledby="vault-keygen-title">
+                        <div class="hive-vault-keygen-dialog-heading">
+                            <div>
+                                <p class="hive-eyebrow">Hive Command / Utility</p>
+                                <h2 id="vault-keygen-title">Temporary key generator</h2>
+                            </div>
+                            <button class="hive-vault-icon-button" type="button" aria-label="Close key generator" title="Close key generator" x-on:click="closeKeygen">×</button>
+                        </div>
+                        @include('livewire.vault-generator-panel', ['generatorContext' => 'standalone', 'generatorId' => 'keygen'])
+                    </section>
                 </div>
             </div>
 

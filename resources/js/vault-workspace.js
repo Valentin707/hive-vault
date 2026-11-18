@@ -1,4 +1,5 @@
 import { decryptData, encryptData } from './vault-crypto';
+import { calculateEntropy, generatePassword, generatePassphrase } from './vault-generator';
 
 const DATABASE_PORTS = {
     postgresql: '5432',
@@ -124,6 +125,28 @@ export function registerVaultWorkspace(Alpine) {
         isSaving: false,
         isMutating: false,
         showFormPassword: false,
+        generatorOpen: false,
+        keygenOpen: false,
+        generatorMode: 'password',
+        passwordGeneratorOptions: {
+            length: 24,
+            uppercase: true,
+            lowercase: true,
+            numbers: true,
+            symbols: true,
+            excludeAmbiguous: false,
+        },
+        passphraseGeneratorOptions: {
+            wordCount: 4,
+            separator: '-',
+            capitalize: true,
+            includeNumber: true,
+        },
+        generatedSecret: '',
+        generatedEntropy: { bits: 0, label: 'FAIR' },
+        generatorError: '',
+        generatorCopied: false,
+        generatorCopiedTimeout: null,
         revealedFields: {},
         copiedField: '',
         copiedTimeout: null,
@@ -162,6 +185,10 @@ export function registerVaultWorkspace(Alpine) {
 
         get trashCount() {
             return this.items.filter((item) => Boolean(item.deleted_at)).length;
+        },
+
+        get generatorEntropyLabel() {
+            return `${this.generatedEntropy.bits}-BIT // ${this.generatedEntropy.label}`;
         },
 
         get visibleItems() {
@@ -320,6 +347,9 @@ export function registerVaultWorkspace(Alpine) {
             this.form = createEmptyItemForm();
             this.formErrors = [];
             this.showFormPassword = false;
+            this.generatorOpen = false;
+            this.keygenOpen = false;
+            this.clearGeneratedSecret();
             this.revealedFields = {};
             this.copiedField = '';
             this.folderEditorOpen = false;
@@ -473,6 +503,7 @@ export function registerVaultWorkspace(Alpine) {
             this.form = createEmptyItemForm();
             this.formErrors = [];
             this.showFormPassword = false;
+            this.closeInlineGenerator();
             this.selectedItem = { ...item, payload: null };
             this.inspectorMode = 'view';
             this.workspaceError = '';
@@ -528,10 +559,12 @@ export function registerVaultWorkspace(Alpine) {
             this.formErrors = [];
             this.workspaceError = '';
             this.showFormPassword = false;
+            this.closeInlineGenerator();
         },
 
         changeItemType(type) {
             const current = this.form;
+            this.closeInlineGenerator();
             this.form = {
                 ...createEmptyItemForm(type),
                 id: current.id,
@@ -547,6 +580,7 @@ export function registerVaultWorkspace(Alpine) {
                 return;
             }
 
+            this.closeInlineGenerator();
             this.form.auth_method = method;
             this.form.password = '';
             this.form.private_key = '';
@@ -557,11 +591,160 @@ export function registerVaultWorkspace(Alpine) {
             this.form.port = DATABASE_PORTS[this.form.engine] ?? '';
         },
 
+        togglePasswordGenerator() {
+            if (this.generatorOpen) {
+                this.closeInlineGenerator();
+
+                return;
+            }
+
+            this.clearGeneratedSecret();
+            this.keygenOpen = false;
+            this.generatorOpen = true;
+            this.regenerateGeneratedSecret();
+        },
+
+        openKeygen() {
+            this.clearGeneratedSecret();
+            this.generatorOpen = false;
+            this.keygenOpen = true;
+            this.regenerateGeneratedSecret();
+        },
+
+        closeKeygen() {
+            this.keygenOpen = false;
+            this.clearGeneratedSecret();
+        },
+
+        closeInlineGenerator() {
+            this.generatorOpen = false;
+            this.clearGeneratedSecret();
+        },
+
+        clearGeneratedSecret() {
+            window.clearTimeout(this.generatorCopiedTimeout);
+            this.generatorCopiedTimeout = null;
+            this.generatorCopied = false;
+            this.generatedSecret = '';
+            this.generatedEntropy = { bits: 0, label: 'FAIR' };
+            this.generatorError = '';
+        },
+
+        setGeneratorMode(mode) {
+            if (!['password', 'passphrase'].includes(mode)) {
+                return;
+            }
+
+            this.generatorMode = mode;
+            this.regenerateGeneratedSecret();
+        },
+
+        updatePasswordGeneratorLength(length) {
+            this.passwordGeneratorOptions.length = Number(length);
+            this.regenerateGeneratedSecret();
+        },
+
+        togglePasswordCharacterSet(characterSet) {
+            if (!['uppercase', 'lowercase', 'numbers', 'symbols'].includes(characterSet)) {
+                return;
+            }
+
+            const enabledSets = ['uppercase', 'lowercase', 'numbers', 'symbols']
+                .filter((name) => this.passwordGeneratorOptions[name]);
+
+            if (this.passwordGeneratorOptions[characterSet] && enabledSets.length === 1) {
+                return;
+            }
+
+            this.passwordGeneratorOptions[characterSet] = !this.passwordGeneratorOptions[characterSet];
+            this.regenerateGeneratedSecret();
+        },
+
+        toggleExcludeAmbiguous() {
+            this.passwordGeneratorOptions.excludeAmbiguous = !this.passwordGeneratorOptions.excludeAmbiguous;
+            this.regenerateGeneratedSecret();
+        },
+
+        updatePassphraseOption(option, value) {
+            if (option === 'wordCount') {
+                this.passphraseGeneratorOptions.wordCount = Number(value);
+            } else if (option === 'separator' && ['-', '_', '.', 'space'].includes(value)) {
+                this.passphraseGeneratorOptions.separator = value === 'space' ? ' ' : value;
+            } else {
+                return;
+            }
+
+            this.regenerateGeneratedSecret();
+        },
+
+        togglePassphraseOption(option) {
+            if (!['capitalize', 'includeNumber'].includes(option)) {
+                return;
+            }
+
+            this.passphraseGeneratorOptions[option] = !this.passphraseGeneratorOptions[option];
+            this.regenerateGeneratedSecret();
+        },
+
+        regenerateGeneratedSecret() {
+            this.generatorError = '';
+
+            try {
+                if (this.generatorMode === 'passphrase') {
+                    this.generatedSecret = generatePassphrase(this.passphraseGeneratorOptions);
+                    this.generatedEntropy = calculateEntropy(this.generatedSecret, {
+                        mode: 'passphrase',
+                        ...this.passphraseGeneratorOptions,
+                    });
+                } else {
+                    this.generatedSecret = generatePassword(this.passwordGeneratorOptions);
+                    this.generatedEntropy = calculateEntropy(this.generatedSecret, this.passwordGeneratorOptions);
+                }
+            } catch {
+                this.generatedSecret = '';
+                this.generatedEntropy = { bits: 0, label: 'FAIR' };
+                this.generatorError = 'SECURE RANDOM GENERATION IS UNAVAILABLE.';
+            }
+        },
+
+        useGeneratedPassword() {
+            if (!this.generatorOpen || !this.generatedSecret) {
+                return;
+            }
+
+            this.form.password = this.generatedSecret;
+            this.showFormPassword = true;
+            this.closeInlineGenerator();
+        },
+
+        async copyGeneratedSecret() {
+            if (!this.keygenOpen || !this.generatedSecret) {
+                return;
+            }
+
+            let secret = this.generatedSecret;
+
+            try {
+                await navigator.clipboard.writeText(secret);
+                secret = '';
+                this.generatorCopied = true;
+                window.clearTimeout(this.generatorCopiedTimeout);
+                this.generatorCopiedTimeout = window.setTimeout(() => {
+                    this.generatorCopied = false;
+                }, 2000);
+            } catch {
+                this.generatorError = 'CLIPBOARD ACCESS WAS DENIED BY THE BROWSER.';
+            } finally {
+                secret = '';
+            }
+        },
+
         startEditing() {
             if (!this.selectedItem?.payload) {
                 return;
             }
 
+            this.closeInlineGenerator();
             const payload = this.selectedItem.payload;
             this.form = {
                 ...createEmptyItemForm(this.selectedItem.type),
@@ -578,6 +761,7 @@ export function registerVaultWorkspace(Alpine) {
         },
 
         cancelItemForm() {
+            this.closeInlineGenerator();
             this.formErrors = [];
             this.workspaceError = '';
             this.form = createEmptyItemForm();
