@@ -8,11 +8,12 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 #[Fillable(['id', 'name', 'email', 'role'])]
-#[Hidden(['password', 'remember_token'])]
+#[Hidden(['password', 'remember_token', 'vault_salt', 'vault_verifier'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -25,6 +26,21 @@ class User extends Authenticatable
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
+    }
+
+    public function vaultFolders(): HasMany
+    {
+        return $this->hasMany(VaultFolder::class);
+    }
+
+    public function vaultItems(): HasMany
+    {
+        return $this->hasMany(VaultItem::class);
+    }
+
+    public function vaultAuditLogs(): HasMany
+    {
+        return $this->hasMany(VaultAuditLog::class);
     }
 
     /**
