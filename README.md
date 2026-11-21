@@ -1,58 +1,104 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# HiveVault
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+HiveVault is a passwordless, zero-knowledge vault for operators in **The Hive Ecosystem**. It is a satellite application that uses the Hive Hub for identity and stores vault data encrypted by the user's Master Password.
 
-## About Laravel
+## Features
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **Hive Hub SSO:** Sign in through the Central Identity Provider using OAuth2. Hub user UUIDs are reused as HiveVault user IDs. The first Hub account to enter a new HiveVault installation becomes its local `admin`; later accounts are `operator`. These roles belong to this app.
+- **Client-side encryption:** The browser derives an AES-256-GCM key from the Master Password using PBKDF2-SHA-256 with 600,000 iterations. Titles, folder names, and item payloads are encrypted before they are sent to the server.
+- **Vault entries:** Store logins, SSH connections, database credentials, and secure notes. Organize entries into encrypted folders, search decrypted titles locally, mark favorites, and restore soft-deleted entries.
+- **Developer quick actions:** Generate SSH commands and database connection URIs or CLI commands in the browser. Export an SSH private key as a PEM file.
+- **Password and passphrase generator:** Create temporary or entry passwords using the browser's cryptographic random number generator.
+- **Security controls:** Choose an inactivity auto-lock period, review recent security audit events, and automatically clear copied clipboard content after 30 seconds or when the vault locks.
+- **Hive Command interface:** Responsive dark HUD styling, plus security headers and custom error pages.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Requirements
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- PHP 8.3 or newer and Composer
+- Node.js 20.19+ or 22.12+ and npm
+- SQLite (the default) or another database supported by Laravel
+- A configured Hive Hub OAuth client
+- HTTPS for the deployed app. Modern browsers require a secure context for Web Crypto and clipboard features; `localhost` is also treated as secure by browsers.
 
-## Learning Laravel
+## Local setup
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+1. Install PHP dependencies and create the local environment file:
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+   ```sh
+   composer install
+   cp .env.example .env
+   php artisan key:generate
+   ```
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+2. Configure `.env` before migrating. Set `APP_NAME`, `APP_URL`, your database connection, and the Hive Hub values shown below. The default database driver is SQLite. If using SQLite, create its database file:
 
-## Agentic Development
+   ```sh
+   touch database/database.sqlite
+   ```
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+3. Apply migrations and install frontend dependencies:
 
-```bash
-composer require laravel/boost --dev
+   ```sh
+   php artisan migrate
+   npm install
+   ```
 
-php artisan boost:install
+4. Start the app using your local PHP server and run Vite in development mode:
+
+   ```sh
+   php artisan serve
+   npm run dev
+   ```
+
+   Run the commands in separate terminals. If you use a local HTTPS domain such as `https://vault.hive.test`, serve the app through your local HTTPS-capable PHP environment and make `APP_URL` and the Hub callback URL match that domain.
+
+For a production asset build, run `npm run build` instead of `npm run dev`.
+
+## Hive Hub configuration
+
+Register HiveVault as an OAuth client in the Hub. The registered redirect URI must exactly match `HIVE_REDIRECT_URI` in HiveVault. For a local `vault.hive.test` setup, the relevant `.env` values look like this:
+
+```dotenv
+APP_NAME=HiveVault
+APP_URL=https://vault.hive.test
+
+HIVE_BASE_URL=https://hub.hive.test
+HIVE_CLIENT_ID=your-client-id
+HIVE_CLIENT_SECRET=your-client-secret
+HIVE_REDIRECT_URI=https://vault.hive.test/auth/callback
+HIVE_VERIFY_SSL=true
+HIVE_CA_BUNDLE=/absolute/path/to/mkcert/rootCA.pem
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+`HIVE_CA_BUNDLE` is optional. Set it to a trusted CA PEM when PHP/Guzzle does not trust your local certificate authority, such as mkcert's root CA. Keep `HIVE_VERIFY_SSL=true`; do not disable certificate verification to work around a local trust issue. Keep client credentials in `.env` and out of source control.
 
-## Contributing
+The sign-in flow starts at `/login`. HiveVault creates a local user with the Hub UUID on first sign-in, then updates only that user's name and email on later sign-ins. The app does not provide local password sign-in.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## Using the vault
 
-## Code of Conduct
+1. Sign in through the Hive Hub.
+2. On first use, create and confirm a Master Password. Use a strong, unique password and keep a secure copy somewhere safe.
+3. Create entries and folders from the three-pane workspace. Login, SSH, database, and note content is encrypted in your browser before it reaches HiveVault.
+4. Use the entry inspector for copy actions, SSH/database connection builders, and private-key export. Generated passwords can be inserted into an entry or copied from the top-bar key generator.
+5. Open **Security** to change auto-lock timing or review audit events. Use **Lock Vault** to clear the unlocked browser session while staying signed in to HiveVault. **Disconnect** ends the local session and redirects to the Hub.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## Security and recovery notes
 
-## Security Vulnerabilities
+- **The Master Password cannot be reset or recovered.** HiveVault does not receive it or the derived encryption key. Losing it means the encrypted vault contents cannot be decrypted.
+- While unlocked, the derived key is kept in tab-scoped `sessionStorage` and the browser's active memory. Locking the vault, inactivity timeout, or closing the tab clears the session key. Do not leave an unlocked vault on a shared or untrusted device.
+- Encryption protects item titles, folder names, and sensitive payload fields. The server still sees account identity and structural vault metadata such as entry type, folder association, favorite state, and timestamps. Audit records also contain event metadata, request IP address, and user agent.
+- Clipboard clearing is best-effort: browser permissions or focus changes can prevent the browser from overwriting the system clipboard. The HUD reports when a wipe attempt fails.
+- Use HTTPS and keep TLS verification enabled for both HiveVault and the Hub.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Useful commands
 
-## License
+```sh
+php artisan migrate       # apply database migrations
+php artisan test          # run the PHPUnit test suite
+npm run dev               # run Vite in development mode
+npm run build             # build production frontend assets
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Technology
+
+HiveVault is built with Laravel 13, Livewire 4, Alpine.js, Tailwind CSS 4, and Vite. The browser cryptography uses the native Web Crypto API.
